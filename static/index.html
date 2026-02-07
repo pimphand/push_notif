@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Push Notification - Test</title>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    button { padding: 0.5rem 1rem; margin: 0.25rem 0; cursor: pointer; }
+    .status { margin-top: 1rem; padding: 0.5rem; background: #f0f0f0; border-radius: 4px; font-size: 0.9rem; }
+    .error { background: #fee; }
+    .success { background: #efe; }
+    .hint { font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+    .hint.warn { background: #fff3cd; padding: 0.4rem 0.5rem; border-radius: 4px; border: 1px solid #ffc107; }
+    .hint.info { background: #e7f3ff; padding: 0.4rem 0.5rem; border-radius: 4px; border: 1px solid #0d6efd; }
+    .hint.steps { background: #f0f0f0; padding: 0.6rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; line-height: 1.5; }
+    .curl-section { margin-top: 1rem; padding: 0.75rem; background: #f8f8f8; border: 1px solid #ddd; border-radius: 6px; }
+    .curl-label { font-size: 0.85rem; color: #333; margin: 0 0 0.5rem 0; }
+    .curl-cmd { margin: 0; padding: 0.5rem; background: #fff; border: 1px solid #eee; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    .btn-copy { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Web Push Notification (Testing)</h1>
+  <p class="hint"><a href="/login.html">Login</a> · <a href="/dashboard.html">Dashboard</a> (kelola key)</p>
+  <p class="hint">Langkah: 1) Klik Subscribe dan izinkan notifikasi → 2) Klik Send Test Notification atau jalankan curl di bawah.</p>
+  <p class="hint steps">
+    <strong>Agar notifikasi muncul (termasuk saat tab ditutup):</strong><br>
+    1) Klik <strong>Test notifikasi lokal</strong> — harus muncul (kalau tidak: izin notifikasi di browser &amp; sistem harus Allow).<br>
+    2) Jangan quit browser (boleh tutup tab, boleh minimize).<br>
+    3) macOS: System Settings → Notifications → Chrome/Firefox → Allow. Buka Notification Center (ikon kanan atas) untuk lihat notifikasi.<br>
+    4) Jika tetap tidak muncul: refresh halaman, klik Subscribe lagi, lalu coba lagi.
+  </p>
+  <p class="hint info">Tab ditutup? Notifikasi dari curl akan muncul di pojok layar / Notification Center (dari Service Worker).</p>
+  <p>
+    <button type="button" id="btn-subscribe">Subscribe Notification</button>
+    <button type="button" id="btn-test-local">Test notifikasi lokal</button>
+  </p>
+  <p>
+    <button type="button" id="btn-notify">Send Test Notification</button>
+  </p>
+  <div id="status" class="status" style="display:none;"></div>
+  <div id="curl-section" class="curl-section" style="display:none;">
+    <p class="curl-label">Test dari terminal (curl):</p>
+    <pre id="curl-cmd" class="curl-cmd"></pre>
+    <button type="button" id="btn-copy-curl" class="btn-copy">Salin curl</button>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

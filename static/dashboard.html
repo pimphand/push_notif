@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Push Notif</title>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; min-height: 100vh; background: #1a1a2e; color: #eee; }
+    .header { background: #16213e; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0f3460; }
+    .header h1 { margin: 0; font-size: 1.25rem; }
+    .header a { color: #00d9ff; text-decoration: none; margin-left: 1rem; }
+    .header a:hover { text-decoration: underline; }
+    .user { font-size: 0.9rem; color: #a0a0a0; }
+    .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #0f3460; }
+    th { background: #0f3460; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .actions { display: flex; gap: 0.5rem; }
+    .btn { padding: 0.4rem 0.75rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.85rem; text-decoration: none; display: inline-block; }
+    .btn-edit { background: #e94560; color: #fff; }
+    .btn-edit:hover { background: #ff6b6b; }
+    .btn-del { background: #333; color: #fff; }
+    .btn-del:hover { background: #555; }
+    .btn-add { background: #00ff88; color: #1a1a2e; margin-bottom: 1rem; }
+    .btn-add:hover { background: #00cc6a; }
+    .btn-logout { background: transparent; color: #a0a0a0; }
+    .btn-logout:hover { color: #fff; }
+    .section { margin-bottom: 2rem; }
+    .section h2 { margin: 0 0 1rem 0; font-size: 1.1rem; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10; align-items: center; justify-content: center; padding: 1rem; }
+    .modal.show { display: flex; }
+    .modal-content { background: #16213e; padding: 1.5rem; border-radius: 12px; width: 100%; max-width: 420px; }
+    .modal-content h3 { margin: 0 0 1rem 0; }
+    .modal-content label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #a0a0a0; }
+    .modal-content input, .modal-content textarea { width: 100%; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; border: 1px solid #0f3460; border-radius: 6px; background: #0f3460; color: #eee; font-size: 0.95rem; }
+    .modal-content textarea { min-height: 60px; resize: vertical; }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .modal-actions .btn { flex: 1; }
+    .empty { color: #666; padding: 2rem; text-align: center; }
+    .key-cell { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pubkey-cell { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hint-form { font-size: 0.85rem; color: #a0a0a0; margin: -0.25rem 0 0.75rem 0; }
+    .cell-with-copy { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .btn-copy { background: #0f3460; color: #00d9ff; font-size: 0.8rem; padding: 0.25rem 0.5rem; }
+    .btn-copy:hover { background: #1a4a7a; }
+    .btn-copy.copied { background: #00ff88; color: #1a1a2e; }
+    .btn-regen { background: #f39c12; color: #1a1a2e; }
+    .btn-regen:hover { background: #e67e22; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Dashboard - Push Notif</h1>
+    <div>
+      <span class="user" id="user-name">—</span>
+      <a href="/">Push Test</a>
+      <button type="button" class="btn btn-logout" id="btn-logout">Logout</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="section">
+      <button type="button" class="btn btn-add" id="btn-add-key">+ Tambah Key</button>
+      <table>
+        <thead>
+          <tr>
+            <th>Nama</th>
+            <th>Key</th>
+            <th>Public Key</th>
+            <th>Domain</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="keys-tbody">
+          <tr><td colspan="5" class="empty">Memuat...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-form">
+    <div class="modal-content">
+      <h3 id="modal-title">Tambah Key</h3>
+      <form id="form-key">
+        <input type="hidden" id="key-id" name="id">
+        <label for="key-name">Nama</label>
+        <input type="text" id="key-name" name="name" required placeholder="Contoh: Produksi">
+        <label for="key-domain">Domain</label>
+        <input type="text" id="key-domain" name="domain" required placeholder="https://example.com">
+        <p class="hint-form">Key dan Public Key digenerate otomatis saat simpan (hanya untuk tambah baru).</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-del" id="modal-cancel">Batal</button>
+          <button type="submit" class="btn btn-edit">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    var API = { base: '', credentials: 'include' };
+    function apiGet(path) { return $.ajax({ url: API.base + path, method: 'GET', credentials: 'include' }); }
+    function apiPost(path, data) { return $.ajax({ url: API.base + path, method: 'POST', contentType: 'application/json', credentials: 'include', data: JSON.stringify(data) }); }
+    function apiPut(path, data) { return $.ajax({ url: API.base + path, method: 'PUT', contentType: 'application/json', credentials: 'include', data: JSON.stringify(data) }); }
+    function apiDelete(path) { return $.ajax({ url: API.base + path, method: 'DELETE', credentials: 'include' }); }
+    function apiPostNoBody(path) { return $.ajax({ url: API.base + path, method: 'POST', credentials: 'include' }); }
+
+    function redirectLogin() { window.location.href = '/login.html'; }
+
+    function loadKeys() {
+      apiGet('/api/keys')
+        .done(function (rows) {
+          var tbody = $('#keys-tbody');
+          if (!rows || rows.length === 0) {
+            tbody.html('<tr><td colspan="5" class="empty">Belum ada key. Klik Tambah Key.</td></tr>');
+            return;
+          }
+          tbody.html(rows.map(function (r) {
+            return '<tr data-id="' + r.id + '" data-key="' + escapeAttr(r.key) + '" data-public-key="' + escapeAttr(r.public_key) + '">' +
+              '<td>' + escapeHtml(r.name) + '</td>' +
+              '<td class="key-cell"><div class="cell-with-copy"><span>••••••</span><button type="button" class="btn btn-copy btn-copy-key" data-id="' + r.id + '">Copy Key</button></div></td>' +
+              '<td class="pubkey-cell"><div class="cell-with-copy"><span title="' + escapeHtml(r.public_key) + '">' + escapeHtml(r.public_key) + '</span><button type="button" class="btn btn-copy btn-copy-pubkey" data-id="' + r.id + '">Copy Public Key</button></div></td>' +
+              '<td>' + escapeHtml(r.domain) + '</td>' +
+              '<td class="actions">' +
+                '<button type="button" class="btn btn-regen btn-regenerate-key" data-id="' + r.id + '">Regenerate</button>' +
+                '<button type="button" class="btn btn-edit btn-edit-key" data-id="' + r.id + '">Edit</button>' +
+                '<button type="button" class="btn btn-del btn-del-key" data-id="' + r.id + '">Hapus</button>' +
+              '</td></tr>';
+          }).join(''));
+        })
+        .fail(function (xhr) {
+          if (xhr.status === 401) redirectLogin();
+          else $('#keys-tbody').html('<tr><td colspan="5" class="empty">Gagal memuat: ' + (xhr.responseJSON && xhr.responseJSON.message || xhr.statusText) + '</td></tr>');
+        });
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      var div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+    function escapeAttr(s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    function copyToClipboard(text, $btn) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          var oldText = $btn.text();
+          $btn.text('Tersalin!').addClass('copied');
+          setTimeout(function () { $btn.text(oldText).removeClass('copied'); }, 2000);
+        }).catch(function () { fallbackCopy(text, $btn); });
+      } else { fallbackCopy(text, $btn); }
+    }
+    function fallbackCopy(text, $btn) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        var oldText = $btn.text();
+        $btn.text('Tersalin!').addClass('copied');
+        setTimeout(function () { $btn.text(oldText).removeClass('copied'); }, 2000);
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    function openModal(editId) {
+      $('#key-id').val(editId || '');
+      $('#key-name, #key-domain').val('');
+      $('#modal-title').text(editId ? 'Edit Key' : 'Tambah Key');
+      if (editId) {
+        var row = $('tr[data-id="' + editId + '"]');
+        if (row.length) {
+          var cells = row.find('td');
+          $('#key-name').val(cells.eq(0).text());
+          $('#key-domain').val(cells.eq(3).text());
+        }
+      }
+      $('#modal-form').addClass('show');
+    }
+
+    function closeModal() { $('#modal-form').removeClass('show'); }
+
+    apiGet('/api/me')
+      .done(function (r) {
+        if (r.ok && r.username) $('#user-name').text(r.username);
+      })
+      .fail(function (xhr) {
+        if (xhr.status === 401) redirectLogin();
+      });
+
+    loadKeys();
+
+    $('#btn-add-key').on('click', function () { openModal(null); });
+    $('#modal-cancel').on('click', closeModal);
+    $('#keys-tbody').on('click', '.btn-edit-key', function () {
+      var id = $(this).data('id');
+      apiGet('/api/keys').done(function (rows) {
+        var r = rows.find(function (x) { return x.id === id; });
+        if (r) {
+          $('#key-id').val(r.id);
+          $('#key-name').val(r.name);
+          $('#key-domain').val(r.domain);
+          $('#modal-title').text('Edit Key');
+          $('#modal-form').addClass('show');
+        }
+      });
+    });
+    $('#keys-tbody').on('click', '.btn-regenerate-key', function () {
+      var id = $(this).data('id');
+      var $btn = $(this);
+      if (!confirm('Regenerate key dan public key untuk baris ini? Key lama tidak bisa dipakai lagi.')) return;
+      $btn.prop('disabled', true).text('...');
+      apiPostNoBody('/api/keys/' + id + '/regenerate')
+        .done(function (r) {
+          loadKeys();
+          if (r.message) alert(r.message);
+        })
+        .fail(function (xhr) {
+          alert((xhr.responseJSON && xhr.responseJSON.message) || 'Gagal regenerate');
+        })
+        .always(function () { $btn.prop('disabled', false).text('Regenerate'); });
+    });
+    $('#keys-tbody').on('click', '.btn-copy-key', function () {
+      var id = $(this).data('id');
+      var row = $(this).closest('tr');
+      var key = row.attr('data-key');
+      if (key) copyToClipboard(key, $(this));
+    });
+    $('#keys-tbody').on('click', '.btn-copy-pubkey', function () {
+      var row = $(this).closest('tr');
+      var pub = row.attr('data-public-key');
+      if (pub) copyToClipboard(pub, $(this));
+    });
+    $('#keys-tbody').on('click', '.btn-del-key', function () {
+      var id = $(this).data('id');
+      if (!confirm('Hapus key ini?')) return;
+      apiDelete('/api/keys/' + id)
+        .done(function () { loadKeys(); })
+        .fail(function (xhr) { alert((xhr.responseJSON && xhr.responseJSON.message) || 'Gagal hapus'); });
+    });
+
+    $('#form-key').on('submit', function (e) {
+      e.preventDefault();
+      var id = $('#key-id').val();
+      var payload = { name: $('#key-name').val().trim(), domain: $('#key-domain').val().trim() };
+      var req = id ? apiPut('/api/keys/' + id, payload) : apiPost('/api/keys', payload);
+      req.done(function () { closeModal(); loadKeys(); })
+        .fail(function (xhr) { alert((xhr.responseJSON && xhr.responseJSON.message) || 'Gagal simpan'); });
+    });
+
+    $('#btn-logout').on('click', function () {
+      apiPost('/api/logout').always(function () { redirectLogin(); });
+    });
+  </script>
+</body>
+</html>

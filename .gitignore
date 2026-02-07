@@ -1,0 +1,7 @@
+/target
+/logs
+private.pem
+subscriptions.json
+.env
+.idea
+README.md
