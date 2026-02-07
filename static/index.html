@@ -40,13 +40,18 @@
   </p>
   <p>
     <button type="button" id="btn-notify">Send Test Notification</button>
+    <button type="button" id="btn-trigger">Trigger (gaya Pusher)</button>
   </p>
+  <p class="hint">Trigger = kirim event ke channel (seperti Pusher). Subscribe dulu, lalu klik Trigger atau jalankan curl trigger di bawah.</p>
   <div id="status" class="status" style="display:none;"></div>
   <div id="curl-section" class="curl-section" style="display:none;">
-    <p class="curl-label">Test dari terminal (curl):</p>
+    <p class="curl-label">Notify (broadcast):</p>
     <pre id="curl-cmd" class="curl-cmd"></pre>
-    <button type="button" id="btn-copy-curl" class="btn-copy">Salin curl</button>
+    <p class="curl-label" style="margin-top:0.75rem;">Trigger (channel + event, gaya Pusher):</p>
+    <pre id="curl-trigger" class="curl-cmd"></pre>
+    <button type="button" id="btn-copy-curl" class="btn-copy">Salin curl notify</button>
   </div>
+  <script src="push-notif.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

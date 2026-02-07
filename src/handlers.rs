@@ -11,7 +11,7 @@ use web_push::SubscriptionInfo;
 use crate::auth::{create_token, AuthUser, AUTH_COOKIE_NAME};
 use crate::keys::{CreateKeyBody, KeyRow, UpdateKeyBody};
 use crate::push_service;
-use crate::state::{save_subscriptions, AppState, LastNotification};
+use crate::state::{save_subscriptions, AppState, LastNotification, SubscriptionKeys};
 
 #[derive(Deserialize)]
 pub struct SubscribeKeys {
@@ -23,6 +23,9 @@ pub struct SubscribeKeys {
 pub struct SubscribeBody {
     pub endpoint: String,
     pub keys: SubscribeKeys,
+    /// Channel names (gaya Pusher). Kosong = channel "default".
+    #[serde(default)]
+    pub channels: Vec<String>,
 }
 
 pub async fn vapid_public_key(State(state): State<AppState>) -> impl IntoResponse {
@@ -35,15 +38,14 @@ pub async fn subscribe(
     State(state): State<AppState>,
     Json(body): Json<SubscribeBody>,
 ) -> impl IntoResponse {
-    let subscription = SubscriptionInfo::new(
-        body.endpoint.clone(),
-        body.keys.p256dh.clone(),
-        body.keys.auth.clone(),
-    );
-    let endpoint = subscription.endpoint.clone();
+    let keys = SubscriptionKeys {
+        p256dh: body.keys.p256dh,
+        auth: body.keys.auth,
+    };
+    let endpoint = body.endpoint.clone();
     let count = {
         let mut subs = state.subscriptions.write().await;
-        subs.add(subscription);
+        subs.add(endpoint.clone(), keys, body.channels);
         let to_save = subs.clone();
         if let Err(e) = save_subscriptions(&to_save).await {
             warn!(error = %e, "failed to persist subscriptions");
@@ -58,6 +60,9 @@ pub async fn subscribe(
 pub struct NotifyPayload {
     pub title: String,
     pub body: String,
+    /// URL ikon/logo notifikasi (opsional)
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 pub async fn notify(
@@ -81,9 +86,18 @@ pub async fn notify(
         );
     }
 
+    let base_url = std::env::var("PUSH_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let icon_url = payload
+        .icon
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .cloned()
+        .unwrap_or_else(|| format!("{}/static/icon-default.png", base_url.trim_end_matches('/')));
+
     let payload_json = serde_json::json!({
         "title": payload.title,
-        "body": payload.body
+        "body": payload.body,
+        "icon": icon_url
     });
     let payload_bytes = payload_json.to_string().into_bytes();
     let push_service = state.push_service.clone();
@@ -125,6 +139,85 @@ pub async fn notify_last(State(state): State<AppState>) -> impl IntoResponse {
         None => serde_json::json!({ "id": null, "title": null, "body": null }),
     };
     (StatusCode::OK, Json(response))
+}
+
+// --- Trigger (gaya Pusher) ---
+
+#[derive(Deserialize)]
+pub struct TriggerBody {
+    /// Channel(s) tujuan. Kosong = kirim ke semua subscription (broadcast).
+    #[serde(default)]
+    pub channels: Vec<String>,
+    /// Nama event (wajib).
+    pub event: String,
+    /// Data payload (object bebas). Untuk notifikasi OS bisa pakai title/body di dalam data.
+    #[serde(default)]
+    pub data: serde_json::Value,
+}
+
+pub async fn trigger(
+    State(state): State<AppState>,
+    Json(body): Json<TriggerBody>,
+) -> impl IntoResponse {
+    if body.event.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "ok": false,
+                "message": "event wajib diisi"
+            })),
+        );
+    }
+    let subscriptions = {
+        let subs = state.subscriptions.read().await;
+        subs.by_channels(&body.channels)
+    };
+    if subscriptions.is_empty() {
+        info!("trigger called but no subscriptions for channels");
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "ok": true,
+                "sent": 0,
+                "failed": 0,
+                "message": "No subscriptions for channel(s)"
+            })),
+        );
+    }
+
+    let channel_label = if body.channels.is_empty() {
+        "broadcast"
+    } else if body.channels.len() == 1 {
+        body.channels[0].as_str()
+    } else {
+        "multi"
+    };
+    let payload_json = serde_json::json!({
+        "event": body.event,
+        "channel": channel_label,
+        "data": body.data
+    });
+    let payload_bytes = payload_json.to_string().into_bytes();
+    let push_service = state.push_service.clone();
+    let total = subscriptions.len();
+
+    let (sent, failed) = push_service::send_to_all(
+        &push_service,
+        &subscriptions,
+        &payload_bytes,
+    )
+    .await;
+
+    info!(event = %body.event, channel = %channel_label, sent, failed, total, "trigger completed");
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "ok": true,
+            "sent": sent,
+            "failed": failed,
+            "message": format!("Event '{}' terkirim ke {} subscription.", body.event, sent)
+        })),
+    )
 }
 
 // --- Auth ---

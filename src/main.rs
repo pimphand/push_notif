@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/subscribe", post(handlers::subscribe))
         .route("/notify", post(handlers::notify))
         .route("/notify/last", get(handlers::notify_last))
+        .route("/trigger", post(handlers::trigger))
         .route(
             "/api/login",
             post(handlers::login).options(|| async { StatusCode::NO_CONTENT }),
